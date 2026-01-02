@@ -1400,7 +1400,7 @@ class _WeatherHomeState extends State<WeatherHome> {
                                       _istriggeredFromLocations = true;
                                       themeCalled = false;
                                       _isLoadingFroggy = true;
-                                      weatherFuture = Future.value(processWeatherData(result));
+                                      weatherFuture = Future.value(processWeatherData(result!));
                                     });
                                   }
                                   return;
