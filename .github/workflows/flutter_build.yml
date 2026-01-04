@@ -18,6 +18,25 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.32.4"
+          cache: true
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Pub packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Install dependencies
         run: flutter pub get
@@ -44,7 +63,7 @@ jobs:
 
       - name: Rename APKs
         run: |
-          VERSION_NAME=$(grep 'version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          VERSION_NAME=$(grep 'version:' pubspec.yaml | head -n 1 | awk '{print $2}' | cut -d'+' -f1)
           mkdir release_apks
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release_apks/WeatherMaster.${VERSION_NAME}.arm64-v8a.apk
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk release_apks/WeatherMaster.${VERSION_NAME}.armeabi-v7a.apk
