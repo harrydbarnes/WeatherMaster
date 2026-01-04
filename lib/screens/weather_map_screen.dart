@@ -128,7 +128,6 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                 TileLayer(
                   key: ValueKey(_frames[_currentIndex].path),
                   urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
-                  backgroundColor: Colors.transparent,
                 ),
               // Marker for current location
               MarkerLayer(
