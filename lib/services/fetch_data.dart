@@ -58,9 +58,15 @@ class WeatherService {
     });
 
     Uri? astronomyUri;
-    if (isBackground == false) {
+    // Check if the key exists and is not the placeholder or empty
+    final weatherApiKey = dotenv.env['API_KEY_WEATHERAPI'];
+    final bool hasValidWeatherApiKey = weatherApiKey != null &&
+                                      weatherApiKey.isNotEmpty &&
+                                      weatherApiKey != 'weatherapi.com_api';
+
+    if (isBackground == false && hasValidWeatherApiKey) {
       astronomyUri = Uri.parse(
-          'https://api.weatherapi.com/v1/astronomy.json?key=${dotenv.env['API_KEY_WEATHERAPI'].toString()}&q=$lat,$lon');
+          'https://api.weatherapi.com/v1/astronomy.json?key=$weatherApiKey&q=$lat,$lon');
     }
 
     // Prepare list of HTTP requests
@@ -74,20 +80,31 @@ class WeatherService {
 
       final responses = await Future.wait(requests);
 
-      for (var response in responses) {
-        if (response.statusCode < 200 || response.statusCode >= 300) {
+      // Check main weather and AQI responses
+      for (int i = 0; i < 2; i++) {
+         if (responses[i].statusCode < 200 || responses[i].statusCode >= 300) {
           throw Exception(
-              'HTTP request failed with status: ${response.statusCode}');
+              'HTTP request failed with status: ${responses[i].statusCode}');
         }
       }
 
-      if (astronomyUri != null) log("Astronomy response: ${responses[2].body}");
+      // Check astronomy response if it exists (index 2)
+      bool astronomyFailed = false;
+      if (astronomyUri != null) {
+        if (responses[2].statusCode < 200 || responses[2].statusCode >= 300) {
+          log("Astronomy fetch failed: ${responses[2].statusCode}");
+          astronomyFailed = true;
+        } else {
+           log("Astronomy response: ${responses[2].body}");
+        }
+      }
+
       // Parse responses
       final weatherData =
           json.decode(responses[0].body) as Map<String, dynamic>;
       final airQualityData =
           json.decode(responses[1].body) as Map<String, dynamic>;
-      final astronomyData = astronomyUri != null
+      final astronomyData = (astronomyUri != null && !astronomyFailed)
           ? json.decode(responses[2].body) as Map<String, dynamic>
           : {};
       // Check if we need fallback data for missing fields

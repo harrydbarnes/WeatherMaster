@@ -20,6 +20,8 @@ import 'package:animations/animations.dart';
 import 'package:moon_phase/moon_widget.dart';
 import '../screens/weather_map_screen.dart';
 import '../utils/preferences_helper.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class ConditionsWidgets extends StatefulWidget {
   final int selectedContainerBgIndex;
@@ -443,6 +445,15 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
               return ExtendWidget('sun_widget');
             },
             closedBuilder: (context, openContainer) {
+              // Get current location from cache for the preview tile
+              final cachedLocation = PreferencesHelper.getJson('currentLocation');
+              double lat = 0.0;
+              double lon = 0.0;
+              if (cachedLocation != null) {
+                lat = cachedLocation['latitude'] ?? 0.0;
+                lon = cachedLocation['longitude'] ?? 0.0;
+              }
+
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1609,10 +1620,37 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                   ),
                   child: Stack(
                     children: [
+                      // Mini Map Preview
                       Positioned.fill(
-                        child: Padding(
-                           padding: EdgeInsets.all(20),
-                           child: Icon(Symbols.map, size: 80, color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)),
+                        child: IgnorePointer(
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: LatLng(lat, lon),
+                              initialZoom: 8.0,
+                              interactionOptions: const InteractionOptions(
+                                flags: InteractiveFlag.none,
+                              ),
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName: 'com.pranshulgg.weather_master_app',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Overlay gradient to make text readable
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(widget.selectedContainerBgIndex).withOpacity(0.7),
+                              Color(widget.selectedContainerBgIndex).withOpacity(0.3),
+                            ],
+                          ),
                         ),
                       ),
                       ListTile(
@@ -1636,18 +1674,6 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                       ),
-                       Align(
-                          alignment: Alignment.center,
-                          child: Text(
-                            "map".tr(),
-                             style: TextStyle(
-                                fontFamily: "FlexFontEn",
-                                fontSize: isFoldableLayout(context)
-                                    ? 60
-                                    : MediaQuery.of(context).size.width * 0.1,
-                                color: Theme.of(context).colorScheme.onSurface),
-                          ),
-                        ),
                     ],
                   ),
                 ),

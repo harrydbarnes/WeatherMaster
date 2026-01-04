@@ -116,18 +116,19 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
               initialCenter: LatLng(widget.lat, widget.lon),
               initialZoom: 8.0,
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all,
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.weather_master_app',
+                userAgentPackageName: 'com.pranshulgg.weather_master_app',
               ),
               if (!_isLoading && _frames.isNotEmpty)
                 TileLayer(
                   key: ValueKey(_frames[_currentIndex].path),
                   urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
+                  userAgentPackageName: 'com.pranshulgg.weather_master_app',
                 ),
               // Marker for current location
               MarkerLayer(
