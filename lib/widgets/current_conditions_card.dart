@@ -19,7 +19,6 @@ import '../utils/visual_utils.dart';
 import 'package:animations/animations.dart';
 import 'package:moon_phase/moon_widget.dart';
 import '../screens/weather_map_screen.dart';
-import '../utils/preferences_helper.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -1361,6 +1360,15 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
               return ExtendWidget('moon_widget');
             },
             closedBuilder: (context, openContainer) {
+              // Get current location from cache for the preview tile
+              final cachedLocation = PreferencesHelper.getJson('currentLocation');
+              double pLat = 0.0;
+              double pLon = 0.0;
+              if (cachedLocation != null) {
+                pLat = cachedLocation['latitude'] ?? 0.0;
+                pLon = cachedLocation['longitude'] ?? 0.0;
+              }
+
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1625,7 +1633,7 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                         child: IgnorePointer(
                           child: FlutterMap(
                             options: MapOptions(
-                              initialCenter: LatLng(lat, lon),
+                              initialCenter: LatLng(pLat, pLon),
                               initialZoom: 8.0,
                               interactionOptions: const InteractionOptions(
                                 flags: InteractiveFlag.none,
