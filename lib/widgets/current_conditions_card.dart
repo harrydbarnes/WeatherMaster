@@ -18,6 +18,8 @@ import '../helper/locale_helper.dart';
 import '../utils/visual_utils.dart';
 import 'package:animations/animations.dart';
 import 'package:moon_phase/moon_widget.dart';
+import '../screens/weather_map_screen.dart';
+import '../utils/preferences_helper.dart';
 
 class ConditionsWidgets extends StatefulWidget {
   final int selectedContainerBgIndex;
@@ -85,12 +87,17 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
     final savedList = prefs.getStringList(orderPrefsKey);
 
     if (savedList != null && savedList.isNotEmpty) {
+      List<int> loadedOrder = savedList.map(int.parse).toList();
+      // Ensure new tiles (like index 10) are added if missing
+      if (!loadedOrder.contains(10)) {
+        loadedOrder.add(10);
+      }
       setState(() {
-        itemOrder = savedList.map(int.parse).toList();
+        itemOrder = loadedOrder;
       });
     } else {
       setState(() {
-        itemOrder = List.generate(10, (index) => index);
+        itemOrder = List.generate(11, (index) => index);
       });
     }
   }
@@ -1567,6 +1574,114 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                     ),
                     onTap: () {});
               });
+        case 10:
+          return OpenContainer(
+            transitionType: ContainerTransitionType.fadeThrough,
+            closedElevation: 1,
+            closedShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            openShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            openElevation: 0,
+            transitionDuration: Duration(milliseconds: 500),
+            closedColor: Color(widget.selectedContainerBgIndex),
+            openColor: colorTheme.surface,
+            openBuilder: (context, _) {
+              // Get current location from cache or shared prefs if available
+              final cachedLocation = PreferencesHelper.getJson('currentLocation');
+              double lat = 0.0;
+              double lon = 0.0;
+              if (cachedLocation != null) {
+                lat = cachedLocation['latitude'] ?? 0.0;
+                lon = cachedLocation['longitude'] ?? 0.0;
+              }
+              return WeatherMapScreen(lat: lat, lon: lon);
+            },
+            closedBuilder: (context, openContainer) {
+              return GestureDetector(
+                child: Container(
+                  clipBehavior: Clip.hardEdge,
+                  decoration: BoxDecoration(
+                    color: Color(widget.selectedContainerBgIndex),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Padding(
+                           padding: EdgeInsets.all(20),
+                           child: Icon(Symbols.map, size: 80, color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5)),
+                        ),
+                      ),
+                      ListTile(
+                        leading: Icon(
+                          Symbols.map,
+                          weight: 500,
+                          fill: 1,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
+                        horizontalTitleGap: 5,
+                        contentPadding:
+                            EdgeInsetsDirectional.only(start: 10, bottom: 0),
+                        title: Text("weather_map".tr(),
+                            style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                       Align(
+                          alignment: Alignment.center,
+                          child: Text(
+                            "map".tr(),
+                             style: TextStyle(
+                                fontFamily: "FlexFontEn",
+                                fontSize: isFoldableLayout(context)
+                                    ? 60
+                                    : MediaQuery.of(context).size.width * 0.1,
+                                color: Theme.of(context).colorScheme.onSurface),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                onTap: () {
+                   !useAnimation
+                          ? Navigator.of(context).push(PageRouteBuilder(
+                              opaque: true,
+                              fullscreenDialog: true,
+                              reverseTransitionDuration:
+                                  Duration(milliseconds: 200),
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) {
+                                final cachedLocation = PreferencesHelper.getJson('currentLocation');
+                                double lat = 0.0;
+                                double lon = 0.0;
+                                if (cachedLocation != null) {
+                                  lat = cachedLocation['latitude'] ?? 0.0;
+                                  lon = cachedLocation['longitude'] ?? 0.0;
+                                }
+                                return WeatherMapScreen(lat: lat, lon: lon);
+                              },
+                              transitionsBuilder: (context, animation,
+                                  secondaryAnimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                            ))
+                          : openContainer();
+                },
+              );
+            },
+          );
         default:
           return const SizedBox();
       }
