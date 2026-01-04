@@ -1619,6 +1619,15 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
               return WeatherMapScreen(lat: lat, lon: lon);
             },
             closedBuilder: (context, openContainer) {
+              // Get current location from cache for the preview tile
+              final cachedLocation = PreferencesHelper.getJson('currentLocation');
+              double pLat = 0.0;
+              double pLon = 0.0;
+              if (cachedLocation != null) {
+                pLat = cachedLocation['latitude'] ?? 0.0;
+                pLon = cachedLocation['longitude'] ?? 0.0;
+              }
+
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
