@@ -1643,7 +1643,7 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                           child: FlutterMap(
                             options: MapOptions(
                               initialCenter: LatLng(pLat, pLon),
-                              initialZoom: 8.0,
+                              initialZoom: 10.0,
                               interactionOptions: const InteractionOptions(
                                 flags: InteractiveFlag.none,
                               ),
@@ -1652,6 +1652,20 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                               TileLayer(
                                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: LatLng(pLat, pLon),
+                                    width: 40,
+                                    height: 40,
+                                    child: Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:flutter/services.dart';
 
 class WeatherMapScreen extends StatefulWidget {
   final double lat;
@@ -47,13 +48,45 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
         final past = radar['past'] as List;
         final nowcast = radar['nowcast'] as List;
 
+        // Filter past frames to strictly last 1 hour
+        final int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final oneHourAgo = now - 3600;
+
+        var filteredPast = past
+            .map((e) => MapFrame.fromJson(e, isPast: true))
+            .where((frame) => frame.time >= oneHourAgo)
+            .toList();
+
+        var filteredNowcast = nowcast
+            .map((e) => MapFrame.fromJson(e, isPast: false))
+            .toList();
+
+        // Combine and filter to approximate 15 minute intervals
+        // RainViewer usually provides 10 min intervals for past, 5 for nowcast.
+        // We will try to pick frames closest to 15 min steps.
+        List<MapFrame> allFrames = [...filteredPast, ...filteredNowcast];
+        List<MapFrame> sampledFrames = [];
+
+        if (allFrames.isNotEmpty) {
+          sampledFrames.add(allFrames.first);
+          int lastTime = allFrames.first.time;
+
+          for (int i = 1; i < allFrames.length; i++) {
+            if (allFrames[i].time - lastTime >= 900) { // 900 seconds = 15 mins
+              sampledFrames.add(allFrames[i]);
+              lastTime = allFrames[i].time;
+            }
+          }
+        } else {
+           sampledFrames = allFrames;
+        }
+
         setState(() {
-          _frames = [
-            ...past.map((e) => MapFrame.fromJson(e, isPast: true)),
-            ...nowcast.map((e) => MapFrame.fromJson(e, isPast: false)),
-          ];
+          _frames = sampledFrames;
           // Start at the last "past" frame (current time roughly)
-          _currentIndex = past.length - 1;
+          _currentIndex = filteredPast.isNotEmpty ?
+              sampledFrames.lastIndexWhere((f) => f.isPast) : 0;
+
           if (_currentIndex < 0) _currentIndex = 0;
           _isLoading = false;
         });
@@ -83,6 +116,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
           } else {
             _currentIndex = 0;
           }
+          HapticFeedback.selectionClick();
         });
       });
     } else {
@@ -93,6 +127,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Fix white line on right side
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -126,7 +161,8 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
               ),
               if (!_isLoading && _frames.isNotEmpty)
                 TileLayer(
-                  key: ValueKey(_frames[_currentIndex].path),
+                  // Remove key to prevent hard rebuilds, enabling smoother transitions (if supported by cache)
+                  // key: ValueKey(_frames[_currentIndex].path),
                   urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
                   userAgentPackageName: 'com.pranshulgg.weather_master_app',
                 ),
@@ -196,6 +232,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _currentIndex = value.toInt();
+                                HapticFeedback.selectionClick();
                                 if (_isPlaying) {
                                   _togglePlay(); // Pause if user drags
                                 }
