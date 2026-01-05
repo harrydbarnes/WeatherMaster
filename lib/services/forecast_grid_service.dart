@@ -90,7 +90,8 @@ class ForecastGridService {
 
     // Assume all locations return same time steps
     List<dynamic> timeStrings = locationsData[0]['hourly']['time'];
-    List<int> timestamps = timeStrings.map((t) => DateTime.parse(t).millisecondsSinceEpoch ~/ 1000).toList();
+    // Open-Meteo returns time in ISO8601 format without 'Z' (e.g. "2024-01-01T00:00") but it is UTC by default
+    List<int> timestamps = timeStrings.map((t) => DateTime.parse("${t}Z").millisecondsSinceEpoch ~/ 1000).toList();
 
     for (int tIndex = 0; tIndex < timestamps.length; tIndex++) {
       int time = timestamps[tIndex];

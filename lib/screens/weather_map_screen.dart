@@ -5,7 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map_heatmap/flutter_map_heatmap.dart';
+import 'package:weather_master_app/widgets/heatmap/flutter_map_heatmap.dart';
 import 'package:weather_master_app/services/forecast_grid_service.dart';
 
 class WeatherMapScreen extends StatefulWidget {
@@ -36,13 +36,6 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
   @override
   void initState() {
     super.initState();
-    // Delay initial fetch to ensure map is ready and we can get bounds,
-    // or just fetch based on initial center and some default zoom/bounds logic.
-    // However, map controller bounds might not be available immediately in initState.
-    // So we'll trigger it after first frame or use a post frame callback.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchWeatherFrames();
-    });
   }
 
   @override
@@ -150,6 +143,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
           } else {
             _currentIndex = 0;
           }
+          _rebuildStream.add(null);
         });
       });
     } else {
@@ -210,7 +204,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onMapReady: () {
-                // We might want to fetch here if postFrameCallback was too early
+                _fetchWeatherFrames();
               },
             ),
             children: [
@@ -225,7 +219,10 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
               // Heatmap Overlay
               if (!_isLoading && currentHeatMapData.isNotEmpty)
                 HeatMapLayer(
-                  heatmapOptions: HeatmapOptions(
+                  heatMapDataSource: InMemoryHeatMapDataSource(
+                    data: currentHeatMapData.entries.map((e) => WeightedLatLng(e.key, e.value)).toList()
+                  ),
+                  heatMapOptions: HeatMapOptions(
                     radius: 60.0, // Adjust size of "blobs" - 30.0 requested, but let's try 60 for better coverage or stick to 30.
                     minOpacity: 0.1,
                     gradient: {
@@ -234,7 +231,6 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                       1.0: Colors.red,                   // Heavy
                     },
                   ),
-                  data: currentHeatMapData.entries.map((e) => WeightedLatLng(e.key, e.value)).toList(),
                   reset: _rebuildStream.stream,
                 ),
 
@@ -317,6 +313,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                                 if (_isPlaying) {
                                   _togglePlay(); // Pause if user drags
                                 }
+                                _rebuildStream.add(null);
                               });
                             },
                           ),
