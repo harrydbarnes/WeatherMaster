@@ -6,7 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
-import 'package:vibration/vibration.dart';
+import 'package:flutter/services.dart';
 
 class WeatherMapScreen extends StatefulWidget {
   final double lat;
@@ -247,11 +247,11 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                           child: Slider(
                             value: _currentIndex.toDouble(),
                             min: 0,
-                            max: (_frames.length - 1).toDouble(),
-                            divisions: _frames.length - 1,
-                            onChanged: (value) {
+                            max: _frames.isEmpty ? 0 : (_frames.length - 1).toDouble(),
+                            divisions: _frames.isEmpty ? 1 : _frames.length - 1,
+                            onChanged: _frames.isEmpty ? null : (value) {
                               if (value.toInt() != _currentIndex) {
-                                Vibration.vibrate(duration: 20);
+                                HapticFeedback.selectionClick();
                               }
                               setState(() {
                                 _currentIndex = value.toInt();
