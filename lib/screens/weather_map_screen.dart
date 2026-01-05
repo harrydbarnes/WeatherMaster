@@ -48,45 +48,59 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
         var past = radar['past'] as List;
         var nowcast = radar['nowcast'] as List;
 
-        // Filter: max 1 hour past
-        // Past array is sorted by time. Last element is most recent past.
-        // We want frames within [now - 1h, now].
-        // But simply taking the last 60 minutes is easier if intervals are known.
-        // RainViewer usually has 10 min intervals. So last 6 frames.
-        // But we also want 15 min intervals.
-        // Let's grab all data first, then resample.
+        // RainViewer public API provides:
+        // Past: 2 hours (12 frames, 10-min steps)
+        // Nowcast: 30 mins (3 frames, 10-min steps) for free users
+        // The "12 hour forecast" is not available in the public JSON endpoint.
+        // We will process what is available.
 
         List<MapFrame> allFrames = [
            ...past.map((e) => MapFrame.fromJson(e, isPast: true)),
            ...nowcast.map((e) => MapFrame.fromJson(e, isPast: false)),
         ];
 
-        // Current time estimation (last past frame)
-        int currentTime = past.last['time'];
+        if (allFrames.isEmpty) throw Exception('No frames available');
 
-        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 12 hours) to match "up to 12 hours"
-        int startTime = currentTime - 3600;
-        int endTime = currentTime + (12 * 3600);
-
-        // Filter by time range
-        List<MapFrame> filtered = allFrames.where((f) => f.time >= startTime && f.time <= endTime).toList();
-
-        // Resample to ~15 min intervals
-        // RainViewer standard is 10 mins (past) and 10 mins (nowcast).
-        // 0, 10, 20, 30, 40, 50, 60
-        // We want 0, 15, 30, 45...
-        // We can pick frames closest to 15 min marks relative to start.
+        // Current time estimation (last past frame is usually "now")
+        // We want to target 15-minute intervals: 0, 15, 30, 45.
+        // Source data is 10-minute intervals: 0, 10, 20, 30, 40, 50.
+        // We will select frames that are closest to the target 15-minute marks.
 
         List<MapFrame> resampled = [];
-        if (filtered.isNotEmpty) {
-           resampled.add(filtered.first);
-           for (int i = 1; i < filtered.length; i++) {
-             // If difference from last added frame is >= 15 mins (900 sec), add it.
-             // Or better, align to 15 min clock boundaries if possible, but data is fixed.
-             if (filtered[i].time - resampled.last.time >= 900) {
-               resampled.add(filtered[i]);
-             }
-           }
+
+        // Determine the start time (aligned to a 15-minute bucket or just the first frame)
+        // Let's align to the first frame's time as the anchor.
+        int anchorTime = allFrames.first.time;
+        int lastAddedTime = -1;
+
+        // Iterate through target 15-minute steps from anchorTime up to the end of data
+        int endTime = allFrames.last.time;
+
+        for (int targetTime = anchorTime; targetTime <= endTime; targetTime += 900) {
+          // Find the frame with minimum absolute time difference to targetTime
+          MapFrame? closestFrame;
+          int minDiff = 999999;
+
+          for (var frame in allFrames) {
+            int diff = (frame.time - targetTime).abs();
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestFrame = frame;
+            }
+          }
+
+          if (closestFrame != null) {
+            // Avoid duplicates if the closest frame is the same for two targets (unlikely with 10/15 mix but possible)
+            if (lastAddedTime != closestFrame.time) {
+              resampled.add(closestFrame);
+              lastAddedTime = closestFrame.time;
+            }
+          }
+        }
+
+        // Fallback: If resampling failed to pick enough (unlikely), just use original
+        if (resampled.isEmpty) {
+          resampled = allFrames;
         }
 
         // Limit total duration if needed, but the loop above roughly handles it.
@@ -173,9 +187,9 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: isDarkMode
-                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+                    ? 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
                     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: isDarkMode ? ['a', 'b', 'c'] : ['a', 'b', 'c'], // OSM doesn't strictly need it but fine
+                subdomains: isDarkMode ? [] : ['a', 'b', 'c'],
                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
               ),
               if (!_isLoading && _frames.isNotEmpty)
@@ -184,6 +198,11 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                   urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
                   userAgentPackageName: 'com.pranshulgg.weather_master_app',
                   tileProvider: NetworkTileProvider(), // Ensure standard provider
+                ),
+              if (isDarkMode)
+                TileLayer(
+                  urlTemplate: 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+                  userAgentPackageName: 'com.pranshulgg.weather_master_app',
                 ),
               // Marker for current location
               MarkerLayer(
