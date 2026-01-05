@@ -106,6 +106,13 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
         // Limit total duration if needed, but the loop above roughly handles it.
         // Ensure we don't exceed 8 hours roughly (32 frames).
 
+        // Recalculate current time for initial index positioning
+        int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 12 hours) to match user request "1 hour past max"
+        int startTime = currentTime - 3600;
+        resampled = resampled.where((f) => f.time >= startTime).toList();
+
         setState(() {
           _frames = resampled;
 
