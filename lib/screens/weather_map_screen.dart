@@ -126,6 +126,11 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final mapUrl = isDarkMode
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
     return Scaffold(
       backgroundColor: Colors.black, // Fix white line on right side
       extendBodyBehindAppBar: true,
@@ -156,7 +161,8 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: mapUrl,
+                subdomains: isDarkMode ? const ['a', 'b', 'c', 'd'] : const ['a', 'b', 'c'],
                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
               ),
               if (!_isLoading && _frames.isNotEmpty)

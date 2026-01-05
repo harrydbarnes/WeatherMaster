@@ -1628,6 +1628,11 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                 pLon = cachedLocation['longitude'] ?? 0.0;
               }
 
+              final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+              final mapUrl = isDarkMode
+                  ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1650,7 +1655,8 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                             ),
                             children: [
                               TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                urlTemplate: mapUrl,
+                                subdomains: isDarkMode ? const ['a', 'b', 'c', 'd'] : const ['a', 'b', 'c'],
                                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
                               ),
                               MarkerLayer(
