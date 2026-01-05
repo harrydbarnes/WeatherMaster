@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map_heatmap/flutter_map_heatmap.dart';
+import 'package:weather_master_app/services/forecast_grid_service.dart';
 
 class WeatherMapScreen extends StatefulWidget {
   final double lat;
@@ -19,123 +19,114 @@ class WeatherMapScreen extends StatefulWidget {
 }
 
 class _WeatherMapScreenState extends State<WeatherMapScreen> {
-  List<MapFrame> _frames = [];
+  // Map of timestamp (epoch seconds) -> Map<LatLng, precipitation value>
+  Map<int, Map<LatLng, double>> _frames = {};
+  List<int> _sortedTimestamps = [];
   int _currentIndex = 0;
   bool _isPlaying = false;
   Timer? _timer;
   bool _isLoading = true;
-  String _host = '';
+
+  final MapController _mapController = MapController();
+  final ForecastGridService _forecastService = ForecastGridService();
+
+  // Stream controller to force heatmap layer reset/update if needed
+  final StreamController<void> _rebuildStream = StreamController.broadcast();
 
   @override
   void initState() {
     super.initState();
-    _fetchRainViewerData();
+    // Delay initial fetch to ensure map is ready and we can get bounds,
+    // or just fetch based on initial center and some default zoom/bounds logic.
+    // However, map controller bounds might not be available immediately in initState.
+    // So we'll trigger it after first frame or use a post frame callback.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchWeatherFrames();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _rebuildStream.close();
     super.dispose();
   }
 
-  Future<void> _fetchRainViewerData() async {
+  Future<void> _fetchWeatherFrames() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      final response = await http.get(Uri.parse('https://api.rainviewer.com/public/weather-maps.json'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _host = data['host'];
-        final radar = data['radar'];
-        var past = radar['past'] as List;
-        var nowcast = radar['nowcast'] as List;
+      // 1. Get Bounds
+      // If controller not ready or bounds null, construct approximate bounds from initial center
+      LatLngBounds bounds;
+      if (_mapController.camera.visibleBounds.isValid) {
+        bounds = _mapController.camera.visibleBounds;
+      } else {
+        // Fallback to a reasonable area around the center (e.g. +/- 1 degree)
+        bounds = LatLngBounds(
+          LatLng(widget.lat - 1, widget.lon - 1),
+          LatLng(widget.lat + 1, widget.lon + 1),
+        );
+      }
 
-        // RainViewer public API provides:
-        // Past: 2 hours (12 frames, 10-min steps)
-        // Nowcast: 30 mins (3 frames, 10-min steps) for free users
-        // The "12 hour forecast" is not available in the public JSON endpoint.
-        // We will process what is available.
+      // 2. Create Grid
+      List<LatLng> gridPoints = _forecastService.generateGrid(bounds);
 
-        List<MapFrame> allFrames = [
-           ...past.map((e) => MapFrame.fromJson(e, isPast: true)),
-           ...nowcast.map((e) => MapFrame.fromJson(e, isPast: false)),
-        ];
+      // 3. Fetch & Interpolate
+      Map<int, Map<LatLng, double>> fetchedFrames = await _forecastService.fetchForecast(gridPoints);
 
-        if (allFrames.isEmpty) throw Exception('No frames available');
+      // 4. Store
+      List<int> sortedKeys = fetchedFrames.keys.toList()..sort();
 
-        // Current time estimation (last past frame is usually "now")
-        // We want to target 15-minute intervals: 0, 15, 30, 45.
-        // Source data is 10-minute intervals: 0, 10, 20, 30, 40, 50.
-        // We will select frames that are closest to the target 15-minute marks.
+      // Filter out past frames if we want strictly "Forecast" or keep them if we want history?
+      // Request said "12 hour forecast", implies future.
+      // Open-Meteo forecast usually starts from current hour.
 
-        List<MapFrame> resampled = [];
+      // Filter: Keep frames from Now to Now + 12 hours
+      int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      // Also allow some past if returned by API (e.g. start of current hour)
+      // but let's strictly follow the plan: "Loop through the next 12 hours".
 
-        // Determine the start time (aligned to a 15-minute bucket or just the first frame)
-        // Let's align to the first frame's time as the anchor.
-        int anchorTime = allFrames.first.time;
-        int lastAddedTime = -1;
+      // Let's filter to roughly [now - 1h, now + 12h] to be safe and showing context.
+      int maxTime = now + 12 * 3600;
 
-        // Iterate through target 15-minute steps from anchorTime up to the end of data
-        int endTime = allFrames.last.time;
+      List<int> filteredKeys = sortedKeys.where((t) => t <= maxTime).toList();
+      Map<int, Map<LatLng, double>> filteredFrames = {};
+      for (var k in filteredKeys) {
+        filteredFrames[k] = fetchedFrames[k]!;
+      }
 
-        for (int targetTime = anchorTime; targetTime <= endTime; targetTime += 900) {
-          // Find the frame with minimum absolute time difference to targetTime
-          MapFrame? closestFrame;
-          int minDiff = 999999;
+      if (mounted) {
+        setState(() {
+          _frames = filteredFrames;
+          _sortedTimestamps = filteredKeys;
 
-          for (var frame in allFrames) {
-            int diff = (frame.time - targetTime).abs();
+          // Set index to start near "now"
+          int bestIndex = 0;
+          int minDiff = 99999999;
+          for(int i=0; i<_sortedTimestamps.length; i++) {
+            int diff = (_sortedTimestamps[i] - now).abs();
             if (diff < minDiff) {
               minDiff = diff;
-              closestFrame = frame;
+              bestIndex = i;
             }
           }
+          _currentIndex = bestIndex;
 
-          if (closestFrame != null) {
-            // Avoid duplicates if the closest frame is the same for two targets (unlikely with 10/15 mix but possible)
-            if (lastAddedTime != closestFrame.time) {
-              resampled.add(closestFrame);
-              lastAddedTime = closestFrame.time;
-            }
-          }
-        }
-
-        // Fallback: If resampling failed to pick enough (unlikely), just use original
-        if (resampled.isEmpty) {
-          resampled = allFrames;
-        }
-
-        // Limit total duration if needed, but the loop above roughly handles it.
-        // Ensure we don't exceed 8 hours roughly (32 frames).
-
-        // Recalculate current time for initial index positioning
-        int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 12 hours) to match user request "1 hour past max"
-        int startTime = currentTime - 3600;
-        resampled = resampled.where((f) => f.time >= startTime).toList();
-
-        setState(() {
-          _frames = resampled;
-
-          // Find the frame closest to "now" to start there
-          // The last 'isPast' frame or the one closest to currentTime
-           int initialIndex = 0;
-           for(int i=0; i<_frames.length; i++){
-             if(_frames[i].time <= currentTime) {
-               initialIndex = i;
-             }
-           }
-          _currentIndex = initialIndex;
           _isLoading = false;
         });
-      } else {
-        throw Exception('Failed to load weather maps');
       }
     } catch (e) {
-      debugPrint('Error fetching RainViewer data: $e');
+      debugPrint("Error fetching forecast grid: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to load weather forecast: $e")),
+        );
       }
     }
   }
@@ -148,7 +139,13 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
     if (_isPlaying) {
       _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
         setState(() {
-          if (_currentIndex < _frames.length - 1) {
+          if (_sortedTimestamps.isEmpty) {
+            timer.cancel();
+            _isPlaying = false;
+            return;
+          }
+
+          if (_currentIndex < _sortedTimestamps.length - 1) {
             _currentIndex++;
           } else {
             _currentIndex = 0;
@@ -163,6 +160,13 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Prepare data for HeatMapLayer
+    // it expects Map<LatLng, double>
+    Map<LatLng, double> currentHeatMapData = {};
+    if (!_isLoading && _sortedTimestamps.isNotEmpty) {
+      currentHeatMapData = _frames[_sortedTimestamps[_currentIndex]] ?? {};
+    }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -180,16 +184,34 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          // Refresh button
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+               decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Symbols.refresh),
+            ),
+            onPressed: _isLoading ? null : _fetchWeatherFrames,
+          )
+        ],
       ),
       body: Stack(
         children: [
           FlutterMap(
+            mapController: _mapController,
             options: MapOptions(
               initialCenter: LatLng(widget.lat, widget.lon),
               initialZoom: 8.0,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
+              onMapReady: () {
+                // We might want to fetch here if postFrameCallback was too early
+              },
             ),
             children: [
               TileLayer(
@@ -199,18 +221,29 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                 subdomains: isDarkMode ? [] : ['a', 'b', 'c'],
                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
               ),
-              if (!_isLoading && _frames.isNotEmpty)
-                TileLayer(
-                  // Removing key to prevent full rebuild flicker, allowing internal tile updates
-                  urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
-                  userAgentPackageName: 'com.pranshulgg.weather_master_app',
-                  tileProvider: NetworkTileProvider(), // Ensure standard provider
+
+              // Heatmap Overlay
+              if (!_isLoading && currentHeatMapData.isNotEmpty)
+                HeatMapLayer(
+                  heatmapOptions: HeatmapOptions(
+                    radius: 60.0, // Adjust size of "blobs" - 30.0 requested, but let's try 60 for better coverage or stick to 30.
+                    minOpacity: 0.1,
+                    gradient: {
+                      0.1: Colors.blue.withOpacity(0.2), // Light Rain
+                      0.5: Colors.yellow,                // Moderate
+                      1.0: Colors.red,                   // Heavy
+                    },
+                  ),
+                  data: currentHeatMapData.entries.map((e) => WeightedLatLng(e.key, e.value)).toList(),
+                  reset: _rebuildStream.stream,
                 ),
+
               if (isDarkMode)
                 TileLayer(
                   urlTemplate: 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
                   userAgentPackageName: 'com.pranshulgg.weather_master_app',
                 ),
+
               // Marker for current location
               MarkerLayer(
                 markers: [
@@ -234,7 +267,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             const Center(
               child: CircularProgressIndicator(),
             ),
-          if (!_isLoading && _frames.isNotEmpty)
+          if (!_isLoading && _sortedTimestamps.isNotEmpty)
             Positioned(
               bottom: 0,
               left: 0,
@@ -249,13 +282,13 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat.jm().format(DateTime.fromMillisecondsSinceEpoch(_frames[_currentIndex].time * 1000)),
+                          DateFormat.jm().format(DateTime.fromMillisecondsSinceEpoch(_sortedTimestamps[_currentIndex] * 1000)),
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(
-                          _frames[_currentIndex].isPast ? "past".tr() : "forecast".tr(),
+                          "Forecast", // Mostly forecast now
                           style: TextStyle(
-                            color: _frames[_currentIndex].isPast ? Colors.grey : Colors.blue,
+                            color: Colors.blue,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -273,9 +306,9 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                           child: Slider(
                             value: _currentIndex.toDouble(),
                             min: 0,
-                            max: _frames.isEmpty ? 0 : (_frames.length - 1).toDouble(),
-                            divisions: _frames.isEmpty ? 1 : _frames.length - 1,
-                            onChanged: _frames.isEmpty ? null : (value) {
+                            max: (_sortedTimestamps.length - 1).toDouble(),
+                            divisions: _sortedTimestamps.length > 1 ? _sortedTimestamps.length - 1 : 1,
+                            onChanged: (value) {
                               if (value.toInt() != _currentIndex) {
                                 HapticFeedback.selectionClick();
                               }
@@ -302,10 +335,9 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                              borderRadius: BorderRadius.circular(5),
                              gradient: LinearGradient(
                                colors: [
-                                 Color(0x00000000), // Transparent
-                                 Color(0xFF83F2AA), // Light Rain
-                                 Color(0xFF3569A6), // Heavy Rain
-                                 Color(0xFFB13158), // Storm
+                                 Colors.blue.withOpacity(0.2), // Light Rain
+                                 Colors.yellow,                // Moderate
+                                 Colors.red,                   // Heavy
                                ],
                              )
                            ),
@@ -319,22 +351,6 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class MapFrame {
-  final int time;
-  final String path;
-  final bool isPast;
-
-  MapFrame({required this.time, required this.path, required this.isPast});
-
-  factory MapFrame.fromJson(Map<String, dynamic> json, {required bool isPast}) {
-    return MapFrame(
-      time: json['time'],
-      path: json['path'],
-      isPast: isPast,
     );
   }
 }
