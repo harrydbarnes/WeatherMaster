@@ -1683,8 +1683,8 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color(widget.selectedContainerBgIndex).withOpacity(0.7),
                               Color(widget.selectedContainerBgIndex).withOpacity(0.3),
+                              Color(widget.selectedContainerBgIndex).withOpacity(0.1),
                             ],
                           ),
                         ),

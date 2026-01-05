@@ -64,12 +64,12 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
         // Current time estimation (last past frame)
         int currentTime = past.last['time'];
 
-        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 7 hours) to match "up to 8 hours"
+        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 12 hours) to match "up to 12 hours"
         int startTime = currentTime - 3600;
-        // int endTime = currentTime + (7 * 3600);
+        int endTime = currentTime + (12 * 3600);
 
         // Filter by time range
-        List<MapFrame> filtered = allFrames.where((f) => f.time >= startTime).toList();
+        List<MapFrame> filtered = allFrames.where((f) => f.time >= startTime && f.time <= endTime).toList();
 
         // Resample to ~15 min intervals
         // RainViewer standard is 10 mins (past) and 10 mins (nowcast).
