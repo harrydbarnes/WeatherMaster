@@ -1643,15 +1643,34 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                           child: FlutterMap(
                             options: MapOptions(
                               initialCenter: LatLng(pLat, pLon),
-                              initialZoom: 8.0,
+                              initialZoom: 9.0,
+                              backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF262626) : const Color(0xFFaad3df), // Match water color (Dark vs Light)
                               interactionOptions: const InteractionOptions(
                                 flags: InteractiveFlag.none,
                               ),
                             ),
                             children: [
                               TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                urlTemplate: Theme.of(context).brightness == Brightness.dark
+                                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+                                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                subdomains: Theme.of(context).brightness == Brightness.dark ? ['a', 'b', 'c'] : ['a', 'b', 'c'],
                                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: LatLng(pLat, pLon),
+                                    width: 20,
+                                    height: 20,
+                                    child: Icon(
+                                      Symbols.location_on,
+                                      color: Colors.red,
+                                      size: 24,
+                                      fill: 1, // Filled icon
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

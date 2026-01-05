@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:material_symbols_icons/material_symbols_icons.dart';
+import 'package:vibration/vibration.dart';
 
 class WeatherMapScreen extends StatefulWidget {
   final double lat;
@@ -44,17 +45,65 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
         final data = json.decode(response.body);
         _host = data['host'];
         final radar = data['radar'];
-        final past = radar['past'] as List;
-        final nowcast = radar['nowcast'] as List;
+        var past = radar['past'] as List;
+        var nowcast = radar['nowcast'] as List;
+
+        // Filter: max 1 hour past
+        // Past array is sorted by time. Last element is most recent past.
+        // We want frames within [now - 1h, now].
+        // But simply taking the last 60 minutes is easier if intervals are known.
+        // RainViewer usually has 10 min intervals. So last 6 frames.
+        // But we also want 15 min intervals.
+        // Let's grab all data first, then resample.
+
+        List<MapFrame> allFrames = [
+           ...past.map((e) => MapFrame.fromJson(e, isPast: true)),
+           ...nowcast.map((e) => MapFrame.fromJson(e, isPast: false)),
+        ];
+
+        // Current time estimation (last past frame)
+        int currentTime = past.last['time'];
+
+        // Filter: Keep frames from (currentTime - 1 hour) to (currentTime + 7 hours) to match "up to 8 hours"
+        int startTime = currentTime - 3600;
+        // int endTime = currentTime + (7 * 3600);
+
+        // Filter by time range
+        List<MapFrame> filtered = allFrames.where((f) => f.time >= startTime).toList();
+
+        // Resample to ~15 min intervals
+        // RainViewer standard is 10 mins (past) and 10 mins (nowcast).
+        // 0, 10, 20, 30, 40, 50, 60
+        // We want 0, 15, 30, 45...
+        // We can pick frames closest to 15 min marks relative to start.
+
+        List<MapFrame> resampled = [];
+        if (filtered.isNotEmpty) {
+           resampled.add(filtered.first);
+           for (int i = 1; i < filtered.length; i++) {
+             // If difference from last added frame is >= 15 mins (900 sec), add it.
+             // Or better, align to 15 min clock boundaries if possible, but data is fixed.
+             if (filtered[i].time - resampled.last.time >= 900) {
+               resampled.add(filtered[i]);
+             }
+           }
+        }
+
+        // Limit total duration if needed, but the loop above roughly handles it.
+        // Ensure we don't exceed 8 hours roughly (32 frames).
 
         setState(() {
-          _frames = [
-            ...past.map((e) => MapFrame.fromJson(e, isPast: true)),
-            ...nowcast.map((e) => MapFrame.fromJson(e, isPast: false)),
-          ];
-          // Start at the last "past" frame (current time roughly)
-          _currentIndex = past.length - 1;
-          if (_currentIndex < 0) _currentIndex = 0;
+          _frames = resampled;
+
+          // Find the frame closest to "now" to start there
+          // The last 'isPast' frame or the one closest to currentTime
+           int initialIndex = 0;
+           for(int i=0; i<_frames.length; i++){
+             if(_frames[i].time <= currentTime) {
+               initialIndex = i;
+             }
+           }
+          _currentIndex = initialIndex;
           _isLoading = false;
         });
       } else {
@@ -92,6 +141,8 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -121,14 +172,18 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: isDarkMode
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: isDarkMode ? ['a', 'b', 'c'] : ['a', 'b', 'c'], // OSM doesn't strictly need it but fine
                 userAgentPackageName: 'com.pranshulgg.weather_master_app',
               ),
               if (!_isLoading && _frames.isNotEmpty)
                 TileLayer(
-                  key: ValueKey(_frames[_currentIndex].path),
+                  // Removing key to prevent full rebuild flicker, allowing internal tile updates
                   urlTemplate: '$_host${_frames[_currentIndex].path}/256/{z}/{x}/{y}/2/1_1.png',
                   userAgentPackageName: 'com.pranshulgg.weather_master_app',
+                  tileProvider: NetworkTileProvider(), // Ensure standard provider
                 ),
               // Marker for current location
               MarkerLayer(
@@ -193,7 +248,11 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                             value: _currentIndex.toDouble(),
                             min: 0,
                             max: (_frames.length - 1).toDouble(),
+                            divisions: _frames.length - 1,
                             onChanged: (value) {
+                              if (value.toInt() != _currentIndex) {
+                                Vibration.vibrate(duration: 20);
+                              }
                               setState(() {
                                 _currentIndex = value.toInt();
                                 if (_isPlaying) {
