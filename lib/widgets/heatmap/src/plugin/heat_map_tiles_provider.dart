@@ -126,8 +126,7 @@ class HeatMapTilesProvider extends TileProvider {
         : math.max(latDeg, -90).toDouble();
   }
 
-  /// converts the tile x to longitude. if the longitude is out of range then it
- is adjusted to the
+  /// converts the tile x to longitude. if the longitude is out of range then it is adjusted to the
   /// min/max longitude (-180/180)
   double tile2Lon(num x, num z) {
     var xBounded = math.max(x, 0);

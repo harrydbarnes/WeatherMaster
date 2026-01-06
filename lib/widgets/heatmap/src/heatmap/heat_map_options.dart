@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class HeatMapOptions {
-  static final Map<double, MaterialColor> defaultGradient = {
+  static final Map<double, Color> defaultGradient = {
     0.25: Colors.blue,
     0.55: Colors.green,
     0.85: Colors.yellow,
@@ -15,7 +15,7 @@ class HeatMapOptions {
   double radius;
 
   /// Color gradient used for the heat map
-  Map<double, MaterialColor> gradient;
+  Map<double, Color> gradient;
 
   /// the minimum opacity used when calculating the heatmap of an area. accepts a number
   /// between 0 and 1.
@@ -31,7 +31,7 @@ class HeatMapOptions {
       this.minOpacity = 0.3,
       double blurFactor = 0.5,
       double layerOpacity = 0.75,
-      Map<double, MaterialColor>? gradient})
+      Map<double, Color>? gradient})
       : gradient = gradient ?? defaultGradient,
       layerOpacity = layerOpacity >= 0 && layerOpacity <=1 ? layerOpacity : 0.75,
       blurFactor = blurFactor >= 0 && blurFactor <=1 ? blurFactor : 0.75;

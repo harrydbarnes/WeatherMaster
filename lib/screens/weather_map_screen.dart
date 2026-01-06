@@ -54,9 +54,13 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
       // 1. Get Bounds
       // If controller not ready or bounds null, construct approximate bounds from initial center
       LatLngBounds bounds;
-      if (_mapController.camera.visibleBounds.isValid) {
+      try {
         bounds = _mapController.camera.visibleBounds;
-      } else {
+        // Basic check if bounds are extremely small or invalid (0 area)
+        if (bounds.west == bounds.east && bounds.north == bounds.south) {
+          throw Exception("Invalid bounds");
+        }
+      } catch (e) {
         // Fallback to a reasonable area around the center (e.g. +/- 1 degree)
         bounds = LatLngBounds(
           LatLng(widget.lat - 1, widget.lon - 1),
