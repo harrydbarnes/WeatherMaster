@@ -112,6 +112,16 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
           }
           _currentIndex = bestIndex;
 
+          // Debug logging
+          double maxPrecip = 0.0;
+          if (_frames.isNotEmpty && _frames.containsKey(_sortedTimestamps[bestIndex])) {
+             var frame = _frames[_sortedTimestamps[bestIndex]]!;
+             if (frame.isNotEmpty) {
+               maxPrecip = frame.values.reduce((curr, next) => curr > next ? curr : next);
+             }
+          }
+          debugPrint("Forecast loaded: ${_sortedTimestamps.length} frames. Max precip at index $bestIndex: $maxPrecip");
+
           _isLoading = false;
         });
       }
@@ -227,8 +237,8 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                     data: currentHeatMapData.entries.map((e) => WeightedLatLng(e.key, e.value)).toList()
                   ),
                   heatMapOptions: HeatMapOptions(
-                    radius: 60.0, // Adjust size of "blobs" - 30.0 requested, but let's try 60 for better coverage or stick to 30.
-                    minOpacity: 0.1,
+                    radius: 150.0, // Increased radius to ensure blobs merge on the sparse grid
+                    minOpacity: 0.05, // Lower opacity to show even light rain
                     gradient: {
                       0.1: Colors.blue.withOpacity(0.2), // Light Rain
                       0.5: Colors.yellow,                // Moderate

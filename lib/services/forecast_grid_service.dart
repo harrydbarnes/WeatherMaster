@@ -20,8 +20,9 @@ class ForecastGridService {
       // For now, assume non-wrapping or local region.
     }
 
-    // Determine step size to get roughly 6x6 grid
-    int steps = 6;
+    // Determine step size to get roughly 10x10 grid (100 points)
+    // Denser grid helps with heatmap visualization continuity
+    int steps = 10;
     double latStep = (maxLat - minLat) / (steps - 1);
     double lonStep = (maxLon - minLon) / (steps - 1);
 
