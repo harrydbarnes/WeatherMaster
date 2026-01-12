@@ -19,7 +19,7 @@ class HeatMapOptions {
 
   /// the minimum opacity used when calculating the heatmap of an area. accepts a number
   /// between 0 and 1.
-  double? minOpacity;
+  double minOpacity;
 
   /// The blur factor applied during the painting of each point. the higher the number the higher
   /// the intensity.
