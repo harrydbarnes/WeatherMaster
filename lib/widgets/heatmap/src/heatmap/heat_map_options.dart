@@ -26,11 +26,22 @@ class HeatMapOptions {
   /// accepts a number value between 0 and 1.
   double blurFactor;
 
+  /// The maximum intensity value for the heatmap. Defaults to 2.0 (matching previous behavior).
+  /// Data points with intensity >= maxIntensity will be rendered at maximum opacity.
+  double maxIntensity;
+
+  /// Whether to scale the intensity of points based on the zoom level.
+  /// If true, intensity is scaled down as you zoom out (useful for density heatmaps).
+  /// If false, intensity is used as-is (useful for scalar value heatmaps like precipitation).
+  bool scaleIntensityByZoom;
+
   HeatMapOptions(
       {this.radius = 30,
       this.minOpacity = 0.3,
       double blurFactor = 0.5,
       double layerOpacity = 0.75,
+      this.maxIntensity = 2.0,
+      this.scaleIntensityByZoom = true,
       Map<double, Color>? gradient})
       : gradient = gradient ?? defaultGradient,
       layerOpacity = layerOpacity >= 0 && layerOpacity <=1 ? layerOpacity : 0.75,

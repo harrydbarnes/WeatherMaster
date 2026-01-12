@@ -17,7 +17,7 @@ class GrayScaleHeatMapPainter extends CustomPainter {
       {required this.baseCircle,
       this.buffer = 0,
       required this.data,
-      minOpacity = 0.5,
+      this.minOpacity = 0.5,
       this.min,
       this.max});
 

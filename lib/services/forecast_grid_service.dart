@@ -6,7 +6,7 @@ import 'dart:convert';
 class ForecastGridService {
 
   /// Generates a grid of points within the given bounds.
-  /// returns a list of approximately 36 points (6x6).
+  /// returns a list of approximately 625 points (25x25).
   List<LatLng> generateGrid(LatLngBounds bounds) {
     // Get corners
     double minLat = bounds.south;
@@ -20,9 +20,9 @@ class ForecastGridService {
       // For now, assume non-wrapping or local region.
     }
 
-    // Determine step size to get roughly 10x10 grid (100 points)
+    // Determine step size to get roughly 25x25 grid (625 points)
     // Denser grid helps with heatmap visualization continuity
-    int steps = 10;
+    int steps = 25;
     double latStep = (maxLat - minLat) / (steps - 1);
     double lonStep = (maxLon - minLon) / (steps - 1);
 

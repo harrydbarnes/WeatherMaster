@@ -35,6 +35,8 @@ class HeatMapTilesProvider extends TileProvider {
       radius: radius,
       minOpacity: heatMapOptions.minOpacity,
       gradient: heatMapOptions.gradient,
+      maxIntensity: heatMapOptions.maxIntensity, // Pass maxIntensity
+      scaleIntensityByZoom: heatMapOptions.scaleIntensityByZoom,
     );
     return HeatMapImage(filteredData, imageHMOptions, tileSize);
   }
@@ -53,7 +55,12 @@ class HeatMapTilesProvider extends TileProvider {
     final maxZoom = options.maxZoom;
     final bounds = _bounds(coords, 1);
     final points = dataSource.getData(bounds, zoom.toDouble());
-    final v = 1 / math.pow(2, math.max(0, math.min(maxZoom - zoom, 12)));
+
+    // Only apply zoom scaling if enabled
+    double v = 1.0;
+    if (heatMapOptions.scaleIntensityByZoom) {
+      v = 1 / math.pow(2, math.max(0, math.min(maxZoom - zoom, 12)));
+    }
 
     final cellSize = radius / 2;
 

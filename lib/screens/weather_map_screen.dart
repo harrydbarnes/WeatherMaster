@@ -237,8 +237,10 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                     data: currentHeatMapData.entries.map((e) => WeightedLatLng(e.key, e.value)).toList()
                   ),
                   heatMapOptions: HeatMapOptions(
-                    radius: 150.0, // Increased radius to ensure blobs merge on the sparse grid
-                    minOpacity: 0.05, // Lower opacity to show even light rain
+                    radius: 100.0, // adjusted radius
+                    minOpacity: 0.1, // adjusted min opacity
+                    maxIntensity: 10.0, // Scale for precipitation (e.g. 10mm is heavy rain)
+                    scaleIntensityByZoom: false, // Disable density scaling, use raw values
                     gradient: {
                       0.1: Colors.blue.withOpacity(0.2), // Light Rain
                       0.5: Colors.yellow,                // Moderate

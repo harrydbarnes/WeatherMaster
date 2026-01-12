@@ -73,8 +73,13 @@ class HeatMap {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    // Pass minOpacity and max (maxIntensity) to the painter
     final painter = GrayScaleHeatMapPainter(
-        baseCircle: baseCircle, data: data, minOpacity: options.minOpacity);
+        baseCircle: baseCircle,
+        data: data,
+        minOpacity: options.minOpacity,
+        max: options.maxIntensity);
+
     painter.paint(
         canvas, Size(width + options.radius, height + options.radius));
 
@@ -87,18 +92,34 @@ class HeatMap {
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     final byteCount = byteData?.lengthInBytes;
     var transparentByteCount = 0;
-    for (var i = 0, len = byteData!.lengthInBytes, j = 0; i < len; i += 4) {
-      j = byteData.getUint8(i + 3) * 4;
-      if (i < 40) {}
-      if (j > 0) {
+
+    // Safety check for palette availability
+    if (byteData == null) {
+      return Uint8List(0);
+    }
+
+    for (var i = 0, len = byteData.lengthInBytes, j = 0; i < len; i += 4) {
+      // GrayScaleHeatMapPainter writes the intensity to the Alpha channel.
+      int sourceAlpha = byteData.getUint8(i + 3);
+
+      // Use sourceAlpha as index into the palette (0-255)
+      j = sourceAlpha * 4;
+
+      if (j > 0 && sourceAlpha > 0) {
+        // Read RGB from palette
         byteData.setUint8(i, _palette.getUint8(j));
         byteData.setUint8(i + 1, _palette.getUint8(j + 1));
         byteData.setUint8(i + 2, _palette.getUint8(j + 2));
-        byteData.setUint8(i + 3, byteData.getUint8(i + 3) + 255);
+
+        // Combine source alpha (intensity shape) with palette alpha (color opacity)
+        // This ensures both the Gaussian falloff and the gradient opacity are respected.
+        int paletteAlpha = _palette.getUint8(j + 3);
+        int finalAlpha = (sourceAlpha * paletteAlpha) ~/ 255;
+
+        byteData.setUint8(i + 3, finalAlpha);
       } else {
         transparentByteCount = transparentByteCount + 4;
       }
-      if (i < 40) {}
     }
 
     Uint8List bitmap;
