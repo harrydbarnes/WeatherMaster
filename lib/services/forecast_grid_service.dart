@@ -20,9 +20,9 @@ class ForecastGridService {
       // For now, assume non-wrapping or local region.
     }
 
-    // Determine step size to get roughly 25x25 grid (625 points)
-    // Denser grid helps with heatmap visualization continuity
-    int steps = 25;
+    // Determine step size to get roughly 20x20 grid (400 points)
+    // Reduced from 25x25 to ensure URL length stays within safe limits while maintaining coverage
+    int steps = 20;
     double latStep = (maxLat - minLat) / (steps - 1);
     double lonStep = (maxLon - minLon) / (steps - 1);
 
