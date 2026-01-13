@@ -6,7 +6,7 @@ void main() {
   group('ForecastGridService', () {
     final service = ForecastGridService();
 
-    test('generateGrid returns correct number of points for 20x20 grid', () {
+    test('generateGrid returns correct number of points for 15x15 grid', () {
       final bounds = LatLngBounds(
         const LatLng(0, 0),
         const LatLng(10, 10),
@@ -14,8 +14,8 @@ void main() {
 
       final grid = service.generateGrid(bounds);
 
-      // 20 * 20 = 400 points
-      expect(grid.length, 400);
+      // 15 * 15 = 225 points
+      expect(grid.length, 225);
 
       // Verify corners
       expect(grid.first.latitude, 0.0); // South

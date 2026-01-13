@@ -6,7 +6,7 @@ import 'dart:convert';
 class ForecastGridService {
 
   /// Generates a grid of points within the given bounds.
-  /// returns a list of approximately 400 points (20x20).
+  /// returns a list of approximately 225 points (15x15).
   List<LatLng> generateGrid(LatLngBounds bounds) {
     // Get corners
     double minLat = bounds.south;
@@ -20,9 +20,9 @@ class ForecastGridService {
       // For now, assume non-wrapping or local region.
     }
 
-    // Determine step size to get roughly 20x20 grid (400 points)
-    // Reduced from 25x25 to ensure URL length stays within safe limits while maintaining coverage
-    int steps = 20;
+    // Determine step size to get roughly 15x15 grid (225 points)
+    // Reduced from 20x20 to ensure URL length stays within safe limits (prevents HTTP 414)
+    int steps = 15;
     double latStep = (maxLat - minLat) / (steps - 1);
     double lonStep = (maxLon - minLon) / (steps - 1);
 

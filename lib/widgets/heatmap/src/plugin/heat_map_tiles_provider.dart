@@ -69,7 +69,7 @@ class HeatMapTilesProvider extends TileProvider {
 
     var gridLength = (gridSize / cellSize).ceil() + 2 + gridOffset.ceil();
     List<List<DataPoint?>> grid =
-        List<List<DataPoint?>>.filled(gridLength, [], growable: true);
+        List.generate(gridLength, (_) => [], growable: true);
 
     const crs = Epsg3857();
 

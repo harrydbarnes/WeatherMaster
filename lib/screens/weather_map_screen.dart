@@ -114,13 +114,15 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
 
           // Debug logging
           double maxPrecip = 0.0;
-          if (_frames.isNotEmpty && _frames.containsKey(_sortedTimestamps[bestIndex])) {
+          if (_sortedTimestamps.isNotEmpty && _frames.isNotEmpty && _frames.containsKey(_sortedTimestamps[bestIndex])) {
              var frame = _frames[_sortedTimestamps[bestIndex]]!;
              if (frame.isNotEmpty) {
                maxPrecip = frame.values.reduce((curr, next) => curr > next ? curr : next);
              }
+             debugPrint("Forecast loaded: ${_sortedTimestamps.length} frames. Max precip at index $bestIndex: $maxPrecip");
+          } else {
+             debugPrint("Forecast loaded: ${_sortedTimestamps.length} frames. (Empty or invalid state)");
           }
-          debugPrint("Forecast loaded: ${_sortedTimestamps.length} frames. Max precip at index $bestIndex: $maxPrecip");
 
           _isLoading = false;
         });
