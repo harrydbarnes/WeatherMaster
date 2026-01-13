@@ -240,12 +240,14 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
                     radius: 150.0, // Increased radius for better coverage
                     blurFactor: 1.0, // Use full radius for the gradient (removes "dot" effect)
                     minOpacity: 0.1, // Keep base opacity low to allow smooth blending
-                    maxIntensity: 5.0, // More sensitive to lighter rain (5mm cap)
+                    maxIntensity: 10.0, // Cap at 10mm for full range
                     scaleIntensityByZoom: false, // Disable density scaling, use raw values
                     gradient: {
-                      0.0: Colors.blue.withOpacity(0.3), // Start with visible blue for light rain
-                      0.5: Colors.yellow,                // Moderate
-                      1.0: Colors.red,                   // Heavy
+                      0.1: Colors.lightGreen,
+                      0.4: Colors.green,
+                      0.6: Colors.yellow,
+                      0.8: Colors.orange,
+                      1.0: Colors.purple,
                     },
                   ),
                   reset: _rebuildStream.stream,
@@ -280,89 +282,216 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
             const Center(
               child: CircularProgressIndicator(),
             ),
-          if (!_isLoading && _sortedTimestamps.isNotEmpty)
+          if (!_isLoading && _sortedTimestamps.isNotEmpty) ...[
+            // Legend Pill
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+              bottom: 180, // Position above the card
+              right: 16,
               child: Container(
-                color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
-                padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E), // Dark background
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Light", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 100,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Colors.lightGreen,
+                            Colors.green,
+                            Colors.yellow,
+                            Colors.orange,
+                            Colors.purple,
+                            Colors.indigo
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text("Heavy", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                    const SizedBox(width: 8),
+                    const Icon(Symbols.keyboard_arrow_up, color: Colors.grey, size: 16),
+                  ],
+                ),
+              ),
+            ),
+
+            // Floating Control Card
+            Positioned(
+              bottom: 30,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF251A15), // Dark brown/black shade
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Top Row: Time and Play Button
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          DateFormat.jm().format(DateTime.fromMillisecondsSinceEpoch(_sortedTimestamps[_currentIndex] * 1000)),
-                          style: Theme.of(context).textTheme.titleLarge,
+                        // Time Display
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              DateFormat('h:mm').format(DateTime.fromMillisecondsSinceEpoch(_sortedTimestamps[_currentIndex] * 1000)),
+                              style: const TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white, // Color(0xFFE0E0E0),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat('a').format(DateTime.fromMillisecondsSinceEpoch(_sortedTimestamps[_currentIndex] * 1000)).toLowerCase(),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          "Forecast", // Mostly forecast now
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
+                        // Play Button
+                        GestureDetector(
+                          onTap: _togglePlay,
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF8A80), // Light coral/red accent
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _isPlaying ? Symbols.pause : Symbols.play_arrow,
+                              color: Colors.black, // Dark icon on light button
+                              size: 28,
+                              fill: 1.0,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(_isPlaying ? Symbols.pause : Symbols.play_arrow),
-                          onPressed: _togglePlay,
-                          iconSize: 32,
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: _currentIndex.toDouble(),
-                            min: 0,
-                            max: (_sortedTimestamps.length - 1).toDouble(),
-                            divisions: _sortedTimestamps.length > 1 ? _sortedTimestamps.length - 1 : 1,
-                            onChanged: (value) {
-                              if (value.toInt() != _currentIndex) {
-                                HapticFeedback.selectionClick();
-                              }
-                              setState(() {
-                                _currentIndex = value.toInt();
-                                if (_isPlaying) {
-                                  _togglePlay(); // Pause if user drags
-                                }
-                                _rebuildStream.add(null);
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                         Text("light".tr(), style: TextStyle(fontSize: 12)),
-                         Container(
-                           width: 150,
-                           height: 10,
-                           decoration: BoxDecoration(
-                             borderRadius: BorderRadius.circular(5),
-                             gradient: LinearGradient(
-                               colors: [
-                                 Colors.blue.withOpacity(0.2), // Light Rain
-                                 Colors.yellow,                // Moderate
-                                 Colors.red,                   // Heavy
-                               ],
-                             )
-                           ),
-                         ),
-                         Text("heavy".tr(), style: TextStyle(fontSize: 12)),
-                      ],
+                    const SizedBox(height: 24),
+                    // Timeline Ruler
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          alignment: Alignment.bottomCenter,
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Ticks
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: List.generate(_sortedTimestamps.length, (index) {
+                                final date = DateTime.fromMillisecondsSinceEpoch(_sortedTimestamps[index] * 1000);
+                                final isHour = date.minute == 0;
+                                final isQuarter = date.minute % 15 == 0; // Assuming 15 min intervals
+
+                                // Show label for hours only?
+                                // If too many points, we might need to skip ticks.
+                                // 12 hours * 4 = 48 points.
+                                // Screen width ~350px. 350/48 = 7px per tick. Tight but okay.
+
+                                return Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                     Container(
+                                      width: 1, // Thin ticks
+                                      height: isHour ? 16 : 8,
+                                      color: Colors.grey[600],
+                                    ),
+                                    if (isHour) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        DateFormat('h a').format(date).toLowerCase(),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600]
+                                        ),
+                                      ),
+                                    ] else if (isHour) // Spacer for alignment if needed
+                                       const SizedBox(height: 14),
+                                  ],
+                                );
+                              }),
+                            ),
+                            // The actual Slider (invisible track)
+                            SliderTheme(
+                              data: SliderThemeData(
+                                trackHeight: 0,
+                                overlayShape: SliderComponentShape.noOverlay,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6, elevation: 0),
+                                thumbColor: const Color(0xFFFF8A80), // Match play button
+                                activeTrackColor: Colors.transparent,
+                                inactiveTrackColor: Colors.transparent,
+                              ),
+                              child: Slider(
+                                value: _currentIndex.toDouble(),
+                                min: 0,
+                                max: (_sortedTimestamps.length - 1).toDouble(),
+                                divisions: _sortedTimestamps.length > 1 ? _sortedTimestamps.length - 1 : 1,
+                                onChanged: (value) {
+                                  if (value.toInt() != _currentIndex) {
+                                    HapticFeedback.selectionClick();
+                                  }
+                                  setState(() {
+                                    _currentIndex = value.toInt();
+                                    if (_isPlaying) {
+                                      _togglePlay(); // Pause if user drags
+                                    }
+                                    _rebuildStream.add(null);
+                                  });
+                                },
+                              ),
+                            ),
+                            // Current Position Indicator (Red Line) - Optional if thumb is enough
+                            // The thumb acts as the indicator.
+                          ],
+                        );
+                      }
                     ),
                   ],
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
