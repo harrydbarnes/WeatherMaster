@@ -105,7 +105,7 @@ class HeatMap {
       // Use sourceAlpha as index into the palette (0-255)
       j = sourceAlpha * 4;
 
-      if (j > 0 && sourceAlpha > 0) {
+      if (sourceAlpha > 0) {
         // Read RGB from palette
         byteData.setUint8(i, _palette.getUint8(j));
         byteData.setUint8(i + 1, _palette.getUint8(j + 1));
@@ -118,7 +118,7 @@ class HeatMap {
 
         byteData.setUint8(i + 3, finalAlpha);
       } else {
-        transparentByteCount = transparentByteCount + 4;
+        transparentByteCount += 4;
       }
     }
 
