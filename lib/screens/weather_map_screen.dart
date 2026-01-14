@@ -90,10 +90,7 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
       int maxTime = now + 12 * 3600;
 
       List<int> filteredKeys = sortedKeys.where((t) => t <= maxTime).toList();
-      Map<int, Map<LatLng, double>> filteredFrames = {};
-      for (var k in filteredKeys) {
-        filteredFrames[k] = fetchedFrames[k]!;
-      }
+      final filteredFrames = { for (var k in filteredKeys) k: fetchedFrames[k]! };
 
       if (mounted) {
         setState(() {
@@ -102,13 +99,9 @@ class _WeatherMapScreenState extends State<WeatherMapScreen> {
 
           // Set index to start near "now"
           int bestIndex = 0;
-          int minDiff = 99999999;
-          for(int i=0; i<_sortedTimestamps.length; i++) {
-            int diff = (_sortedTimestamps[i] - now).abs();
-            if (diff < minDiff) {
-              minDiff = diff;
-              bestIndex = i;
-            }
+          if (_sortedTimestamps.isNotEmpty) {
+            final closestTimestamp = _sortedTimestamps.reduce((a, b) => (a - now).abs() < (b - now).abs() ? a : b);
+            bestIndex = _sortedTimestamps.indexOf(closestTimestamp);
           }
           _currentIndex = bestIndex;
 

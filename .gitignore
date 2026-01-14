@@ -53,4 +53,4 @@ android/key.properties
 *.jks.base64
 
 # Environment files
-.env
+.envandroid/app/google-services.json

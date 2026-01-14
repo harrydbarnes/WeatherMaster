@@ -3,9 +3,10 @@ import java.util.Properties
 import java.io.FileInputStream
 
 
-val keyProperties = Properties()
 val keyPropertiesFile = rootProject.file("key.properties")
-if (keyPropertiesFile.exists()) {
+val hasKeyProperties = keyPropertiesFile.exists()
+val keyProperties = Properties()
+if (hasKeyProperties) {
     keyProperties.load(FileInputStream(keyPropertiesFile))
 }
 
@@ -47,7 +48,7 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keyPropertiesFile.exists()) {
+            if (hasKeyProperties) {
                 keyAlias = keyProperties["keyAlias"] as String
                 keyPassword = keyProperties["keyPassword"] as String
                 storeFile = File(rootProject.projectDir, "${keyProperties["storeFile"]}")
@@ -58,7 +59,7 @@ android {
 
     buildTypes {
         getByName("release") {
-            if (keyPropertiesFile.exists()) {
+            if (hasKeyProperties) {
                 signingConfig = signingConfigs.getByName("release")
             }
             isMinifyEnabled = false

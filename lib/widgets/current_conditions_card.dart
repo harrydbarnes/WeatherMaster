@@ -205,6 +205,15 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
         ? UnitConverter.mToMiles(widget.currentVisibility.toDouble())
         : UnitConverter.mToKm(widget.currentVisibility.toDouble());
 
+    // Cache location for tiles
+    final cachedLocation = PreferencesHelper.getJson('currentLocation');
+    double cachedLat = 0.0;
+    double cachedLon = 0.0;
+    if (cachedLocation != null) {
+      cachedLat = cachedLocation['latitude'] ?? 0.0;
+      cachedLon = cachedLocation['longitude'] ?? 0.0;
+    }
+
     final windUnit = context.watch<UnitSettingsNotifier>().windUnit;
 
     final formattedWindSpeed = windUnit == 'Mph'
@@ -444,15 +453,6 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
               return ExtendWidget('sun_widget');
             },
             closedBuilder: (context, openContainer) {
-              // Get current location from cache for the preview tile
-              final cachedLocation = PreferencesHelper.getJson('currentLocation');
-              double lat = 0.0;
-              double lon = 0.0;
-              if (cachedLocation != null) {
-                lat = cachedLocation['latitude'] ?? 0.0;
-                lon = cachedLocation['longitude'] ?? 0.0;
-              }
-
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1360,15 +1360,6 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
               return ExtendWidget('moon_widget');
             },
             closedBuilder: (context, openContainer) {
-              // Get current location from cache for the preview tile
-              final cachedLocation = PreferencesHelper.getJson('currentLocation');
-              double pLat = 0.0;
-              double pLon = 0.0;
-              if (cachedLocation != null) {
-                pLat = cachedLocation['latitude'] ?? 0.0;
-                pLon = cachedLocation['longitude'] ?? 0.0;
-              }
-
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1608,26 +1599,9 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
             closedColor: Color(widget.selectedContainerBgIndex),
             openColor: colorTheme.surface,
             openBuilder: (context, _) {
-              // Get current location from cache or shared prefs if available
-              final cachedLocation = PreferencesHelper.getJson('currentLocation');
-              double lat = 0.0;
-              double lon = 0.0;
-              if (cachedLocation != null) {
-                lat = cachedLocation['latitude'] ?? 0.0;
-                lon = cachedLocation['longitude'] ?? 0.0;
-              }
-              return WeatherMapScreen(lat: lat, lon: lon);
+              return WeatherMapScreen(lat: cachedLat, lon: cachedLon);
             },
             closedBuilder: (context, openContainer) {
-              // Get current location from cache for the preview tile
-              final cachedLocation = PreferencesHelper.getJson('currentLocation');
-              double pLat = 0.0;
-              double pLon = 0.0;
-              if (cachedLocation != null) {
-                pLat = cachedLocation['latitude'] ?? 0.0;
-                pLon = cachedLocation['longitude'] ?? 0.0;
-              }
-
               return GestureDetector(
                 child: Container(
                   clipBehavior: Clip.hardEdge,
@@ -1642,7 +1616,7 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                         child: IgnorePointer(
                           child: FlutterMap(
                             options: MapOptions(
-                              initialCenter: LatLng(pLat, pLon),
+                              initialCenter: LatLng(cachedLat, cachedLon),
                               initialZoom: 9.0,
                               backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF262626) : const Color(0xFFaad3df), // Match water color (Dark vs Light)
                               interactionOptions: const InteractionOptions(
@@ -1660,7 +1634,7 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                               MarkerLayer(
                                 markers: [
                                   Marker(
-                                    point: LatLng(pLat, pLon),
+                                    point: LatLng(cachedLat, cachedLon),
                                     width: 20,
                                     height: 20,
                                     child: Icon(
@@ -1722,14 +1696,7 @@ class _ConditionsWidgetsState extends State<ConditionsWidgets> {
                                   Duration(milliseconds: 200),
                               pageBuilder:
                                   (context, animation, secondaryAnimation) {
-                                final cachedLocation = PreferencesHelper.getJson('currentLocation');
-                                double lat = 0.0;
-                                double lon = 0.0;
-                                if (cachedLocation != null) {
-                                  lat = cachedLocation['latitude'] ?? 0.0;
-                                  lon = cachedLocation['longitude'] ?? 0.0;
-                                }
-                                return WeatherMapScreen(lat: lat, lon: lon);
+                                return WeatherMapScreen(lat: cachedLat, lon: cachedLon);
                               },
                               transitionsBuilder: (context, animation,
                                   secondaryAnimation, child) {
