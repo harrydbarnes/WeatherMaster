@@ -1,0 +1,52 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.4"
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup environment file
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo "API_TOKEN=${{ secrets.API_TOKEN }}" >> .env
+            echo "API_KEY_WEATHERAPI=${{ secrets.API_KEY_WEATHERAPI }}" >> .env
+            echo "API_KEY_OPENROUTER=${{ secrets.API_KEY_OPENROUTER }}" >> .env
+          fi
+
+      - name: Build APK
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
