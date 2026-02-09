@@ -6,6 +6,7 @@ enum LayoutBlockType {
   daily,
   conditions,
   pollen,
+  map,
 }
 
 class LayoutBlockConfig {

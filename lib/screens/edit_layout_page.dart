@@ -39,6 +39,7 @@ class _EditLayoutPageState extends State<EditLayoutPage> {
         LayoutBlockConfig(type: LayoutBlockType.hourly),
         LayoutBlockConfig(type: LayoutBlockType.daily),
         LayoutBlockConfig(type: LayoutBlockType.conditions),
+        LayoutBlockConfig(type: LayoutBlockType.map),
         LayoutBlockConfig(type: LayoutBlockType.pollen),
       ];
     }
@@ -54,6 +55,7 @@ class _EditLayoutPageState extends State<EditLayoutPage> {
       LayoutBlockConfig(type: LayoutBlockType.hourly),
       LayoutBlockConfig(type: LayoutBlockType.daily),
       LayoutBlockConfig(type: LayoutBlockType.conditions),
+      LayoutBlockConfig(type: LayoutBlockType.map),
       LayoutBlockConfig(type: LayoutBlockType.pollen),
     ];
     setState(() {});
@@ -223,6 +225,8 @@ String getTitle(String type) {
     return 'current_conditions'.tr();
   } else if (type == 'pollen') {
     return 'pollen_card'.tr();
+  } else if (type == 'map') {
+    return 'weather_map'.tr();
   } else {
     return 'Not found';
   }

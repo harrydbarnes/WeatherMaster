@@ -65,6 +65,7 @@ import '../widgets/pollen_card.dart';
 import '../widgets/rain_block.dart';
 import '../widgets/top_summary_block.dart';
 import '../widgets/top_weather_card.dart';
+import '../widgets/map_tile.dart';
 
 // home widget
 import '../widget_background.dart';
@@ -198,6 +199,7 @@ class _WeatherHomeState extends State<WeatherHome> {
         LayoutBlockConfig(type: LayoutBlockType.hourly),
         LayoutBlockConfig(type: LayoutBlockType.daily),
         LayoutBlockConfig(type: LayoutBlockType.conditions),
+        LayoutBlockConfig(type: LayoutBlockType.map),
         LayoutBlockConfig(type: LayoutBlockType.pollen),
       ];
     }
@@ -1139,6 +1141,18 @@ class _WeatherHomeState extends State<WeatherHome> {
                             .surfaceContainerLowest
                             .toARGB32()
                         : weatherContainerColors[selectedContainerBgIndex]);
+
+              case LayoutBlockType.map:
+                return MapTile(
+                  lat: lat ?? 0.0,
+                  lon: lon ?? 0.0,
+                  selectedContainerBgIndex: useFullMaterialScheme
+                      ? Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerLowest
+                          .toARGB32()
+                      : weatherContainerColors[selectedContainerBgIndex],
+                );
 
               case LayoutBlockType.conditions:
                 return SizedBox(

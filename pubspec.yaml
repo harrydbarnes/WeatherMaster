@@ -66,6 +66,8 @@ dependencies:
   moon_phase: ^1.0.2+9
   flex_color_picker: ^3.7.1
   flutter_displaymode: ^0.6.0
+  flutter_map: ^7.0.0
+  latlong2: ^0.9.1
 
   settings_tiles:
     path: ./settings_tiles_custom
